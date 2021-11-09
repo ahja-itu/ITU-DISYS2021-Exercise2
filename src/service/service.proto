@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+// import "google/protobuf/empty.proto";
+option go_package = "github.com/andreaswachs/ITU-DISYS2021-Exercise2/service";
+
+package service;
+
+// RA = Ricart & Agrawala
+service service {
+    rpc Req(RAMessage) returns (RAReply);
+}
+
+message RAMessage {
+    uint64 timestamp = 1; // lamport clock timestamp
+    string pid = 2; //process ID
+}
+
+// The reply is empty: it only means something when/if
+// a reply is received, so it doesn't need to hold any data
+message RAReply {
+}
