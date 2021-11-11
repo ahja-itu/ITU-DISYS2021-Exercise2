@@ -11,11 +11,11 @@ func NewClock() Clock {
 	return Clock{count: 0}
 }
 
-func (c *Clock) Increment() {
+func (c *Clock) Increment() uint64 {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
 	c.count++
+	return c.count
 }
 
 func (c *Clock) GetCount() uint64 {

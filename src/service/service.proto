@@ -15,7 +15,6 @@ message RAMessage {
     string pid = 2; //process ID
 }
 
-// The reply is empty: it only means something when/if
-// a reply is received, so it doesn't need to hold any data
 message RAReply {
+    uint64 timestamp = 1; // lamport clock timestamp
 }
