@@ -38,15 +38,17 @@ func init() {
 }
 
 func main() {
+	go grabCriticalSection()
 	StartServer()
 
-	go grabCriticalSection()
 	neverExit := make(chan int)
 	<-neverExit
 }
 
 func grabCriticalSection() {
+	log.Printf("grabCriticalSection() started, going to wait for 5 seconds")
 	time.Sleep(5 * time.Second)
+	log.Printf("grabCriticalSection() now waited 5 seconds, enter loop")
 	// get the idea (not too often) that I want to enter the critical section
 	for {
 		number := rand.Intn(10)
