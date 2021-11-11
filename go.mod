@@ -3,7 +3,6 @@ module github.com/andreaswachs/ITU-DISYS2021-Exercise2
 go 1.17
 
 require (
-	github.com/phf/go-queue v0.0.0-20170504031614-9abe38d0371d
 	google.golang.org/grpc v1.42.0
 	google.golang.org/protobuf v1.27.1
 )

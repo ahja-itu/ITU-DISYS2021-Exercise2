@@ -15,12 +15,6 @@ import (
 
 type ReplyHandle = chan uint64
 
-var nodeAddresses = []string{
-	"127.0.0.1:5000",
-	"127.0.0.1:5001",
-	"127.0.0.1:5002",
-}
-
 func StartServer() {
 	port := os.Getenv("PORT")
 	address := fmt.Sprintf("127.0.0.1:%v", port)
