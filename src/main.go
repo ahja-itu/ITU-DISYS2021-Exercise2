@@ -70,7 +70,7 @@ func grabCriticalSection() {
 func enter() {
 	clock.Increment()
 
-	log.Printf("[Lamport: %d] Attempting to enter critical section..\n", clock.GetCount())
+	log.Printf("[Lamport: %d] Attempting to enter critical section, state := WANTED..\n", clock.GetCount())
 	stateLock.Lock()
 	state = Wanted
 	stateLock.Unlock()
@@ -101,7 +101,7 @@ func enter() {
 	state = Held
 	stateLock.Unlock()
 
-	log.Printf("[Lamport: %d] Entered critical section\n", clock.GetCount())
+	log.Printf("[Lamport: %d] Entered critical section, state := HELD\n", clock.GetCount())
 }
 
 func receive(Ti uint64, Pi string, handle ReplyHandle) {
@@ -110,7 +110,6 @@ func receive(Ti uint64, Pi string, handle ReplyHandle) {
 
 	log.Printf("[Lamport: %d] Received request to enter critical section from node %s\n", clock.GetCount(), Pi)
 	stateLock.Lock()
-
 	if state == Held || (state == Wanted && (T < Ti || (T == Ti && P < Pi)) /* && (T, P) < (T_i, P_i) */) {
 		log.Printf("[Lamport: %d] Queued reply to %s", clock.GetCount(), Pi)
 
@@ -130,7 +129,7 @@ func receive(Ti uint64, Pi string, handle ReplyHandle) {
 func exit() {
 	clock.Increment()
 
-	log.Printf("[Lamport: %d] Attempting to exit critical section..\n", clock.GetCount())
+	log.Printf("[Lamport: %d] Attempting to exit critical section, state := RELEASED..\n", clock.GetCount())
 	stateLock.Lock()
 	state = Released
 	stateLock.Unlock()
