@@ -8,4 +8,19 @@ run:
 
 .PHONY: docker-build
 docker-build:
-	docker build -t disysexercise2 .  
+	docker build -t disysexercise2 .
+
+
+.PHONY: up
+up:
+	docker-compose up
+
+.PHONY: down
+down:
+	docker-compose down
+
+
+.PHONY: refresh
+refresh:
+	docker build -t disysexercise2 .;
+	docker-compose up
