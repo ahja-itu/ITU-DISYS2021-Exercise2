@@ -8,7 +8,7 @@ services:
     - "5002"
     environment:
       PORT: "5000"
-      OTHERPEERS: "5001,5002"
+      OTHERPEERS: "client2:5001,client3:5002"
   client2:
     image: disysexercise2
     expose:
@@ -17,7 +17,7 @@ services:
     - "5002"
     environment:
       PORT: "5001"
-      OTHERPEERS: "5000,5002"
+      OTHERPEERS: "client1:5000,client3:5002"
   client3:
     image: disysexercise2
     expose:
@@ -26,5 +26,5 @@ services:
     - "5002"
     environment:
       PORT: "5002"
-      OTHERPEERS: "5000,5001"
+      OTHERPEERS: "client1:5000,client2:5001"
 

@@ -17,7 +17,7 @@ type ReplyHandle = chan uint64
 
 func StartServer() {
 	port := os.Getenv("PORT")
-	address := fmt.Sprintf("127.0.0.1:%v", port)
+	address := fmt.Sprintf("0.0.0.0:%v", port)
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
@@ -34,6 +34,8 @@ func StartServer() {
 	server.ConnectNodes()
 
 	service.RegisterServiceServer(grpcServer, &server)
+
+	// It looks as if Serve is a blocking function.
 	if err := grpcServer.Serve(listener); err != nil {
 		log.Fatalf("Server failed to serve: %v", err)
 	}
@@ -51,7 +53,7 @@ func (s *Server) ConnectNodes() {
 	otherPeersPorts := strings.Split(os.Getenv("OTHERPEERS"), ",")
 
 	for _, peer := range otherPeersPorts {
-		address := fmt.Sprintf("127.0.0.1:%s", peer)
+		address := fmt.Sprintf("%s", peer)
 		go s.connectNode(address)
 	}
 }
@@ -67,8 +69,8 @@ func (s *Server) connectNode(nodeAddr string) {
 	log.Printf("Connected to %s\n", nodeAddr)
 
 	s.nodesLock.Lock()
-	defer s.nodesLock.Unlock()
 	s.nodes[nodeAddr] = client
+	s.nodesLock.Unlock()
 }
 
 func (s *Server) Peers() map[string]service.ServiceClient {
