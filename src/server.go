@@ -17,7 +17,7 @@ type ReplyHandle = chan uint64
 
 func StartServer() {
 	port := os.Getenv("PORT")
-	address := fmt.Sprintf("0.0.0.0:%v", port)
+	address := fmt.Sprintf("127.0.0.1:%v", port)
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
@@ -50,11 +50,10 @@ type Server struct {
 }
 
 func (s *Server) ConnectNodes() {
-	otherPeersPorts := strings.Split(os.Getenv("OTHERPEERS"), ",")
+	otherPeersAddresses := strings.Split(os.Getenv("OTHERPEERSADDRS"), ",")
 
-	for _, peer := range otherPeersPorts {
-		address := fmt.Sprintf("%s", peer)
-		go s.connectNode(address)
+	for _, peer := range otherPeersAddresses {
+		go s.connectNode(peer)
 	}
 }
 
