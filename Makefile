@@ -22,5 +22,5 @@ down:
 
 .PHONY: refresh
 refresh:
-	docker build -t disysexercise2 .;
+	docker build -t disysexercise2 .
 	docker-compose up

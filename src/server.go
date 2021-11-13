@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/andreaswachs/ITU-DISYS2021-Exercise2/src/service"
 	"google.golang.org/grpc"
@@ -31,7 +32,7 @@ func StartServer() {
 		nodes: make(map[string]service.ServiceClient),
 		addr:  address,
 	}
-	server.ConnectNodes()
+	go server.ConnectNodes()
 
 	service.RegisterServiceServer(grpcServer, &server)
 
@@ -51,20 +52,36 @@ type Server struct {
 
 func (s *Server) ConnectNodes() {
 	otherPeersAddresses := strings.Split(os.Getenv("OTHERPEERSADDRS"), ",")
-
+	time.Sleep(2 * time.Second)
 	for _, peer := range otherPeersAddresses {
+		log.Printf("trying to start goroutines to connect to node %s", peer)
 		go s.connectNode(peer)
 	}
 }
 
 func (s *Server) connectNode(nodeAddr string) {
 	log.Printf("Connecting to %s..\n", nodeAddr)
-	conn, err := grpc.Dial(nodeAddr, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		log.Printf("Failed to connect to %s\n", nodeAddr)
+
+	var conn *grpc.ClientConn = nil
+	var err error = nil
+	for i := 0; i < 5; i++ {
+		conn, err = grpc.Dial(nodeAddr, grpc.WithTimeout(500*time.Millisecond), grpc.WithInsecure(), grpc.WithBlock())
+		if err != nil {
+			log.Println("tried to connect to node, was not successful before timeout")
+			continue
+			// log.Printf("Failed to connect to %s\n", nodeAddr)
+		}
+
+		if conn != nil {
+			log.Println("Connected to node now!")
+			break
+		}
 	}
 
+	log.Println("Now I'm going to start a new service client")
 	client := service.NewServiceClient(conn)
+	log.Println("Now I've made a new service client")
+
 	log.Printf("Connected to %s\n", nodeAddr)
 
 	s.nodesLock.Lock()

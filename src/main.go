@@ -46,9 +46,13 @@ func main() {
 }
 
 func grabCriticalSection() {
-	log.Printf("grabCriticalSection() started, going to wait for 5 seconds")
-	time.Sleep(5 * time.Second)
-	log.Printf("grabCriticalSection() now waited 5 seconds, enter loop")
+	log.Printf("grabCriticalSection() started, going to wait for 2 connected nodes")
+
+	for len(server.nodes) < 2 {
+		time.Sleep(25 * time.Millisecond)
+	}
+
+	log.Printf("grabCriticalSection() now waited for two connected nodes, enter loop")
 	// get the idea (not too often) that I want to enter the critical section
 	for {
 		number := rand.Intn(10)
@@ -57,7 +61,7 @@ func grabCriticalSection() {
 			log.Printf("[Lamport: %d] Node is thinking about entering the critical section.", clock.GetCount())
 			enter()
 			log.Printf("[Lamport: %d] Node is now in the critical section!", clock.GetCount())
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(2 * time.Second)
 			log.Printf("[Lamport: %d] Node is now bored and wants to get out of the critical section.", clock.GetCount())
 			exit()
 			log.Printf("[Lamport: %d] Node has now exited the critical section.", clock.GetCount())
@@ -79,6 +83,7 @@ func enter() {
 	var wg sync.WaitGroup
 	for nodeAddr, node := range server.Peers() {
 		wg.Add(1)
+		log.Println("I'm going to the run the anonymous function")
 		go func(addr string, node service.ServiceClient) {
 			log.Printf("[Lamport: %d] Sending request to %s..", clock.GetCount(), addr)
 			// We set the PID to the server's address. This will be unique on
@@ -94,8 +99,13 @@ func enter() {
 			log.Printf("[Lamport: %d] Received reply from %s", clock.GetCount(), addr)
 			wg.Done()
 		}(nodeAddr, node)
+
+		log.Println("I'm past the anonymous function")
 	}
+
+	log.Println("Waiting for the waitgroup to unlock")
 	wg.Wait()
+	log.Println("Wait group was unlocked!")
 
 	stateLock.Lock()
 	state = Held
