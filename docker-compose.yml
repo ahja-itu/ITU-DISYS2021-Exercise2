@@ -9,6 +9,7 @@ services:
     environment:
       PORT: "5000"
       OTHERPEERSADDRS: "client2:5001,client3:5002"
+      NODES: 2
   client2:
     image: disysexercise2
     expose:
@@ -18,6 +19,7 @@ services:
     environment:
       PORT: "5001"
       OTHERPEERSADDRS: "client1:5000,client3:5002"
+      NODES: 2
   client3:
     image: disysexercise2
     expose:
@@ -27,4 +29,5 @@ services:
     environment:
       PORT: "5002"
       OTHERPEERSADDRS: "client1:5000,client2:5001"
+      NODES: 2
 

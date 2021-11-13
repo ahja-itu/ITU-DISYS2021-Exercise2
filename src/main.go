@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 	"log"
-	"math/rand"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -19,12 +20,13 @@ const (
 )
 
 var (
-	state     AgentState
-	queue     *Queue = NewQueue()
-	clock     Clock  = NewClock()
-	server    Server
-	stateLock sync.Mutex
-	queueLock sync.Mutex
+	state          AgentState
+	queue          *Queue = NewQueue()
+	clock          Clock  = NewClock()
+	server         Server
+	stateLock      sync.Mutex
+	queueLock      sync.Mutex
+	enterTimestamp uint64 = 0
 )
 
 // On initialisation of the node - i.e. when the program is started
@@ -45,27 +47,31 @@ func main() {
 	<-neverExit
 }
 
-func grabCriticalSection() {
-	log.Printf("grabCriticalSection() started, going to wait for 2 connected nodes")
+func waitForNodesToComeOnline() {
+	n, err := strconv.Atoi(os.Getenv("NODES"))
 
-	for len(server.nodes) < 2 {
-		time.Sleep(25 * time.Millisecond)
+	if err != nil {
+		log.Fatalf("NODES env variable was not able to be converted to number. It was: %s", os.Getenv("NODES"))
 	}
 
-	log.Printf("grabCriticalSection() now waited for two connected nodes, enter loop")
+	for len(server.nodes) < n {
+		time.Sleep(25 * time.Millisecond)
+	}
+}
+
+func grabCriticalSection() {
+	waitForNodesToComeOnline()
 	// get the idea (not too often) that I want to enter the critical section
 	for {
-		number := rand.Intn(10)
-		if number == 3 {
-			// Now I want to enter the critical section
-			log.Printf("[Lamport: %d] Node is thinking about entering the critical section.", clock.GetCount())
-			enter()
-			log.Printf("[Lamport: %d] Node is now in the critical section!", clock.GetCount())
-			time.Sleep(2 * time.Second)
-			log.Printf("[Lamport: %d] Node is now bored and wants to get out of the critical section.", clock.GetCount())
-			exit()
-			log.Printf("[Lamport: %d] Node has now exited the critical section.", clock.GetCount())
-		}
+
+		// Now I want to enter the critical section
+		// log.Printf("[Lamport: %d] Node is thinking about entering the critical section.", clock.GetCount())
+		enter()
+		log.Printf("[Lamport: %d] Node is now in the critical section!", clock.GetCount())
+		time.Sleep(1 * time.Millisecond)
+		// log.Printf("[Lamport: %d] Node is now bored and wants to get out of the critical section.", clock.GetCount())
+		exit()
+		// log.Printf("[Lamport: %d] Node has now exited the critical section.", clock.GetCount())
 
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -77,20 +83,20 @@ func enter() {
 	log.Printf("[Lamport: %d] Attempting to enter critical section, state := WANTED..\n", clock.GetCount())
 	stateLock.Lock()
 	state = Wanted
+	enterTimestamp = clock.GetCount()
 	stateLock.Unlock()
 
 	// Multicast and wait for replies
 	var wg sync.WaitGroup
 	for nodeAddr, node := range server.Peers() {
 		wg.Add(1)
-		log.Println("I'm going to the run the anonymous function")
 		go func(addr string, node service.ServiceClient) {
 			log.Printf("[Lamport: %d] Sending request to %s..", clock.GetCount(), addr)
 			// We set the PID to the server's address. This will be unique on
 			// the local machine, but not necessarily over the network (for
 			// example if two nodes both host on localhost:5000).
 			clock.Increment()
-			msg := &service.RAMessage{Timestamp: clock.GetCount(), Pid: server.addr}
+			msg := &service.RAMessage{Timestamp: enterTimestamp, Pid: server.addr}
 			reply, err := node.Req(context.Background(), msg)
 			if err != nil {
 				log.Fatalf("[Lamport: %d] Request to %s failed with %v", clock.GetCount(), addr, err)
@@ -99,13 +105,9 @@ func enter() {
 			log.Printf("[Lamport: %d] Received reply from %s", clock.GetCount(), addr)
 			wg.Done()
 		}(nodeAddr, node)
-
-		log.Println("I'm past the anonymous function")
 	}
 
-	log.Println("Waiting for the waitgroup to unlock")
 	wg.Wait()
-	log.Println("Wait group was unlocked!")
 
 	stateLock.Lock()
 	state = Held
@@ -116,23 +118,27 @@ func enter() {
 
 func receive(Ti uint64, Pi string, handle ReplyHandle) {
 	clock.Update(Ti)
-	T, P := clock.GetCount(), server.addr
+	T, P := enterTimestamp, server.addr
 
 	log.Printf("[Lamport: %d] Received request to enter critical section from node %s\n", clock.GetCount(), Pi)
 	stateLock.Lock()
 	if state == Held || (state == Wanted && (T < Ti || (T == Ti && P < Pi)) /* && (T, P) < (T_i, P_i) */) {
 		log.Printf("[Lamport: %d] Queued reply to %s", clock.GetCount(), Pi)
-
+		log.Printf("[Lamport: %d] State: %v, T: %d, P: %s, Ti: %d, Pi: %s", clock.GetCount(), state, T, P, Ti, Pi)
 		// Queue the reply to let the client node wait
 		queueLock.Lock()
+		log.Printf("[Lamport: %d] Locked the internal queue, going to queue the reply", clock.GetCount())
 		queue.Enqueue(handle)
 		queueLock.Unlock()
+		log.Printf("[Lamport: %d] unlocked the internal queue lock", clock.GetCount())
 	} else {
 		log.Printf("[Lamport: %d] Replying to %s..", clock.GetCount(), Pi)
+		// log.Printf("[Lamport: %d] T: %d, P: %s, Ti: %d, Pi: %s", T, T, P, Ti, Pi)
 		// Reply to req
 		handle <- clock.Increment()
 		log.Printf("[Lamport: %d] Replied to %s..", clock.GetCount(), Pi)
 	}
+	log.Printf("[Lamport: %d] Exiting receive", clock.GetCount())
 	stateLock.Unlock()
 }
 

@@ -18,7 +18,7 @@ type ReplyHandle = chan uint64
 
 func StartServer() {
 	port := os.Getenv("PORT")
-	address := fmt.Sprintf("127.0.0.1:%v", port)
+	address := fmt.Sprintf("0.0.0.0:%v", port)
 
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
@@ -54,7 +54,6 @@ func (s *Server) ConnectNodes() {
 	otherPeersAddresses := strings.Split(os.Getenv("OTHERPEERSADDRS"), ",")
 	time.Sleep(2 * time.Second)
 	for _, peer := range otherPeersAddresses {
-		log.Printf("trying to start goroutines to connect to node %s", peer)
 		go s.connectNode(peer)
 	}
 }
@@ -62,26 +61,19 @@ func (s *Server) ConnectNodes() {
 func (s *Server) connectNode(nodeAddr string) {
 	log.Printf("Connecting to %s..\n", nodeAddr)
 
-	var conn *grpc.ClientConn = nil
-	var err error = nil
-	for i := 0; i < 5; i++ {
-		conn, err = grpc.Dial(nodeAddr, grpc.WithTimeout(500*time.Millisecond), grpc.WithInsecure(), grpc.WithBlock())
-		if err != nil {
-			log.Println("tried to connect to node, was not successful before timeout")
-			continue
-			// log.Printf("Failed to connect to %s\n", nodeAddr)
-		}
+	var foundConn *grpc.ClientConn = nil
+
+	for {
+		ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+		conn, _ := grpc.DialContext(ctx, nodeAddr, grpc.WithInsecure(), grpc.WithBlock())
 
 		if conn != nil {
-			log.Println("Connected to node now!")
+			foundConn = conn
 			break
 		}
 	}
 
-	log.Println("Now I'm going to start a new service client")
-	client := service.NewServiceClient(conn)
-	log.Println("Now I've made a new service client")
-
+	client := service.NewServiceClient(foundConn)
 	log.Printf("Connected to %s\n", nodeAddr)
 
 	s.nodesLock.Lock()
@@ -105,7 +97,7 @@ func (s *Server) Peers() map[string]service.ServiceClient {
 
 func (s *Server) Req(context context.Context, message *service.RAMessage) (*service.RAReply, error) {
 	handle := make(ReplyHandle)
-	receive(message.Timestamp, message.Pid, handle)
+	go receive(message.Timestamp, message.Pid, handle)
 	timestamp := <-handle
 	return &service.RAReply{Timestamp: timestamp}, nil
 }
