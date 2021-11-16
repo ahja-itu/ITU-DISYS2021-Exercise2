@@ -20,14 +20,14 @@ const (
 )
 
 var (
-	state          AgentState
-	queue          *Queue = NewQueue()
-	clock          Clock  = NewClock()
-	server         Server
-	stateLock      sync.Mutex
-	queueLock      sync.Mutex
-	TLock          sync.Mutex
-	enterTimestamp uint64 = 0
+	state              AgentState
+	queue              *Queue = NewQueue()
+	clock              Clock  = NewClock()
+	server             Server
+	stateLock          sync.Mutex
+	queueLock          sync.Mutex
+	enterTimestampLock sync.Mutex
+	enterTimestamp     uint64 = 0
 )
 
 // On initialisation of the node - i.e. when the program is started
@@ -43,9 +43,6 @@ func init() {
 func main() {
 	go grabCriticalSection()
 	StartServer()
-
-	neverExit := make(chan int)
-	<-neverExit
 }
 
 func waitForNodesToComeOnline() {
@@ -69,22 +66,22 @@ func grabCriticalSection() {
 		// log.Printf("[Lamport: %d] Node is thinking about entering the critical section.", clock.GetCount())
 		enter()
 		log.Printf("[Lamport: %d] Node is now in the critical section!", clock.GetCount())
-		time.Sleep(1 * time.Millisecond)
+		// time.Sleep(1 * time.Millisecond)
 		// log.Printf("[Lamport: %d] Node is now bored and wants to get out of the critical section.", clock.GetCount())
 		exit()
 		// log.Printf("[Lamport: %d] Node has now exited the critical section.", clock.GetCount())
 
-		time.Sleep(50 * time.Millisecond)
+		// time.Sleep(50 * time.Millisecond)
 	}
 }
 
 func enter() {
 	clock.Increment()
 	log.Println("enter()")
-	TLock.Lock()
+	enterTimestampLock.Lock()
 	enterTimestamp = clock.GetCount()
 	log.Printf("Set enterTimestap to %d", enterTimestamp)
-	TLock.Unlock()
+	enterTimestampLock.Unlock()
 
 	log.Printf("[Lamport: %d] Attempting to enter critical section, state := WANTED..\n", clock.GetCount())
 	stateLock.Lock()
@@ -127,10 +124,10 @@ func receive(Ti uint64, Pi string, handle ReplyHandle) {
 
 	log.Printf("[Lamport: %d] Received request to enter critical section from node %s\n", clock.GetCount(), Pi)
 	stateLock.Lock()
-	TLock.Lock()
+	enterTimestampLock.Lock()
 	T, P := enterTimestamp, server.addr
 	log.Printf("T in recieve %d", T)
-	TLock.Unlock()
+	enterTimestampLock.Unlock()
 	if state == Held || (state == Wanted && (T < Ti || (T == Ti && P < Pi)) /* && (T, P) < (T_i, P_i) */) {
 		log.Printf("[Lamport: %d] Queued reply to %s", clock.GetCount(), Pi)
 		log.Printf("[Lamport: %d] State: %v, T: %d, P: %s, Ti: %d, Pi: %s", clock.GetCount(), state, T, P, Ti, Pi)
