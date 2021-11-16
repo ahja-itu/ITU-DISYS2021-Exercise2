@@ -6,7 +6,7 @@ We make use of **Docker**, **docker-compose** and **GNU make** in this project.
 
 ## Notes on the project
 
-The solution is prone to hitting a deadlock. This is observed when two nodes in rapid succession wishes to enter the critical section. They manage to communicate to each other and send a reply, but they will hang and wait for the third node, which will hold a response in its queue. This, however, only happens sporadically, and most times the program will handle rapid requests with no problem. 
+The solution is prone to hitting a deadlock. This is observed when two nodes in rapid succession wishes to enter the critical section. They manage to communicate to each other and correctly either sends a reply or queues the other, depending on which request has the lower timestamp. The third node however does not replied to either before the deadlock is reached, at which point the third notes has only been observed to be in state RELEASED. This, however, only happens sporadically, and most times the program will handle rapid requests with no problem. We have unfortunately not been able to identify any further distinguishing features of the deadlock, that might help discover the causing problem.
 
 We've tried covering this up with a questionable solution of having a deadlock poller, where we've tried to manually cover up the deadlock, but our assumption of replying to the one message left in the queue in the single node were wrong.
 
