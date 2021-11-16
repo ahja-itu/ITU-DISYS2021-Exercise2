@@ -30,7 +30,7 @@ func StartServer() {
 
 	server = Server{
 		nodes: make(map[string]service.ServiceClient),
-		addr:  address,
+		addr:  os.Getenv("NODENAME"),
 	}
 	go server.ConnectNodes()
 
