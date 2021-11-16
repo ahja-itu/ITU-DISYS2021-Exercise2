@@ -26,6 +26,7 @@ var (
 	server         Server
 	stateLock      sync.Mutex
 	queueLock      sync.Mutex
+	TLock          sync.Mutex
 	enterTimestamp uint64 = 0
 )
 
@@ -79,11 +80,15 @@ func grabCriticalSection() {
 
 func enter() {
 	clock.Increment()
+	log.Println("enter()")
+	TLock.Lock()
+	enterTimestamp = clock.GetCount()
+	log.Printf("Set enterTimestap to %d", enterTimestamp)
+	TLock.Unlock()
 
 	log.Printf("[Lamport: %d] Attempting to enter critical section, state := WANTED..\n", clock.GetCount())
 	stateLock.Lock()
 	state = Wanted
-	enterTimestamp = clock.GetCount()
 	stateLock.Unlock()
 
 	// Multicast and wait for replies
@@ -117,20 +122,22 @@ func enter() {
 }
 
 func receive(Ti uint64, Pi string, handle ReplyHandle) {
+	log.Println("receive()")
 	clock.Update(Ti)
-	T, P := enterTimestamp, server.addr
 
 	log.Printf("[Lamport: %d] Received request to enter critical section from node %s\n", clock.GetCount(), Pi)
 	stateLock.Lock()
+	TLock.Lock()
+	T, P := enterTimestamp, server.addr
+	log.Printf("T in recieve %d", T)
+	TLock.Unlock()
 	if state == Held || (state == Wanted && (T < Ti || (T == Ti && P < Pi)) /* && (T, P) < (T_i, P_i) */) {
 		log.Printf("[Lamport: %d] Queued reply to %s", clock.GetCount(), Pi)
 		log.Printf("[Lamport: %d] State: %v, T: %d, P: %s, Ti: %d, Pi: %s", clock.GetCount(), state, T, P, Ti, Pi)
 		// Queue the reply to let the client node wait
 		queueLock.Lock()
-		log.Printf("[Lamport: %d] Locked the internal queue, going to queue the reply", clock.GetCount())
 		queue.Enqueue(handle)
 		queueLock.Unlock()
-		log.Printf("[Lamport: %d] unlocked the internal queue lock", clock.GetCount())
 	} else {
 		log.Printf("[Lamport: %d] Replying to %s..", clock.GetCount(), Pi)
 		// log.Printf("[Lamport: %d] T: %d, P: %s, Ti: %d, Pi: %s", T, T, P, Ti, Pi)
@@ -143,6 +150,7 @@ func receive(Ti uint64, Pi string, handle ReplyHandle) {
 }
 
 func exit() {
+	log.Println("exit()")
 	clock.Increment()
 
 	log.Printf("[Lamport: %d] Attempting to exit critical section, state := RELEASED..\n", clock.GetCount())
